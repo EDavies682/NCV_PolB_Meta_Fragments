@@ -1,0 +1,21 @@
+name: NCV_PolB_Seq
+
+channels:
+ - conda-forge
+ - bioconda
+ - nodefaults
+
+dependencies:
+ - blast
+ - epa-ng
+ - fastp
+ - gappa
+ - mafft
+ - pandoc
+ - prodigal-gv
+ - seqkit
+ - sra-tools
+ - r-base
+ - r-rmarkdown
+ - r-phytools
+ - r-tidyverse
