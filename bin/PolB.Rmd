@@ -1,0 +1,335 @@
+---
+title: "Putative Giant Virus PolB Fragments"
+author: "Eleanor Davies"
+date: "2026-10-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = FALSE)
+
+```
+
+```{r packages, echo=FALSE, message=FALSE, warning=FALSE}
+
+library(phytools)
+library(dplyr)
+library(tidyverse)
+library(BoSSA)
+
+```
+
+```{r args}
+
+args <- commandArgs(trailingOnly = TRUE)
+input_tree <- args[1]
+input_jplace <- args[2]
+input_data <- args[3]
+
+```
+
+
+```{r prepTree}
+
+unfiltered_tree <- read.tree(input_tree)
+
+
+gene_tree <- drop.tip(unfiltered_tree, unfiltered_tree$tip.label[grep("GVOG", unfiltered_tree$tip.label)])
+
+gene_tree$tip.label <- sub("_#_.*$", "", gene_tree$tip.label)
+
+
+sqrt_tree <- gene_tree
+
+sqrt_tree$edge.length <- sqrt(gene_tree$edge.length)
+
+lad_sqrt_tree <- ladderize(sqrt_tree)
+
+```
+
+```{r jplace, echo = FALSE, fig.width=12, fig.height=12, out.width="100%", fig.align="center"}
+
+my_jplace <- read_jplace(input_jplace)
+
+place_table <- my_jplace$placement_positions
+multiclass_table <- my_jplace$multiclass
+
+place_name_table <- left_join(place_table, multiclass_table, by = "placement_id")
+
+place_name_table$id <- sub(" # .*$", "", place_name_table$name)
+place_name_table$acc <- sub("\\..*$", "", place_name_table$name)
+
+lwr_table <- place_name_table |>
+  group_by(name) |>
+  slice_max(like_weight_ratio, n = 1, with_ties = FALSE) |>
+  ungroup()
+
+```
+
+```{r prepData}
+
+gene_data <- read.table(input_data,
+                        header = FALSE,
+                        sep = "\t",
+                        fill = TRUE,
+                        row.names = 1,
+                        colClasses = c("V3" = "character"))
+
+gene_data$V9 <- sub("\\..*$", "", row.names(gene_data))
+
+traits <- gene_data[, c(8, 2, 7), drop = FALSE]
+
+names(traits) <- c("acc", "part", "gc")
+
+traits$acc <- factor(traits$acc)
+traits$part <- factor(traits$part)
+traits$gc <- as.numeric(traits$gc)
+traits$lwr <- as.numeric(lwr_table$like_weight_ratio)
+
+part_levels <- levels(droplevels(traits$part))
+acc_levels <- levels(droplevels(traits$acc))
+
+part_cols <- setNames(
+  colorRampPalette(c("#C7FFD5", "#5099D4", "#7F00B5"))(
+    length(part_levels)
+  ),
+  part_levels
+)
+
+gc_cols <- colorRampPalette(
+  c("#780000", "#B4491F", "#FFAA42", "#FFFF9C")
+)(100)
+
+acc_cols <- setNames(
+  colorRampPalette(c("#C5C8FC", "#F2A285", "#088C21", "#D354DE"))(
+    length(acc_levels)
+  ),
+  acc_levels
+)
+
+lwr_cols <- colorRampPalette(
+  c("#065299", "#0D8AA6", "#C8FC92")
+)(100)
+
+```
+
+```{r depth}
+
+gene_data$V9 <- factor(gene_data$V9)
+
+acc_summary <- gene_data |>
+  count(V9, name = "total_reads") |>
+  arrange(desc(total_reads))
+
+tree_distances <- cophenetic.phylo(gene_tree)
+
+min_reads <- 2
+max_diam <- 0.1
+min_cluster_size <- 2
+
+keep_accs <- acc_summary |>
+  filter(total_reads >= min_reads)
+
+results_list <- list()
+
+for (acc in keep_accs$V9) {
+  
+  ids <- row.names(gene_data)[gene_data$V9 == acc]
+  
+  if (length(ids) >= min_reads) {
+    acc_distances <- tree_distances[ids, ids]
+    
+    hc <- hclust(as.dist(acc_distances), method = "complete")
+    clusters <- cutree(hc, h = max_diam)
+    total_clust <- table(clusters)
+    keep_clust <- total_clust[total_clust >= min_cluster_size]
+    
+    if (length(keep_clust) > 0) {
+      
+      for (cl_id in names(keep_clust)) {
+        
+        clust_ids <- names(clusters[clusters == as.numeric(cl_id)])
+        clust_pos <- gene_data[clust_ids, 2]
+        
+        n_start <- sum(clust_pos == "10", na.rm = TRUE)
+        n_middle <- sum(clust_pos == "11", na.rm = TRUE)
+        n_end <- sum(clust_pos == "01", na.rm = TRUE)
+        
+        depth_df <- data.frame(
+          
+          Accession = as.character(acc),
+          Cluster_Count = length(clust_ids),
+          Start = n_start,
+          Middle = n_middle,
+          End = n_end,
+          stringsAsFactors = FALSE
+          
+        )
+        
+        
+        results_list[[length(results_list) + 1]] <- depth_df
+        
+      }
+    }
+  }
+}
+
+full_df <- bind_rows(results_list) |>
+    arrange(desc(Cluster_Count))
+
+```
+
+
+
+## Summary
+
+#### Table 1: Total Putative PolB-related Coding Region Fragments per Accession
+```{r}
+
+acc_summary <- gene_data |>
+  count(V9, name = "total_reads") |>
+  arrange(desc(total_reads))
+
+acc_summary <- acc_summary |> rename("Accession Number" = V9)
+acc_summary <- acc_summary |> rename("Total Fragments" = total_reads)
+
+knitr::kable(
+  acc_summary,
+  row.names = FALSE,
+  align = c("l", "c")
+)
+```
+
+
+#### <br>
+## Phylogeny
+
+#### Relatedness of Putative PolB Fragments
+Due to the short length of the fragments and the high variability of the PolB gene in giant viruses, this tree should be interpreted as a general indication of the relationships between these sequences, rather than a statistically robust result.
+
+```{r plotTree, fig.width=12, fig.height=12, out.width="100%", fig.align="center"}
+
+partials <- c(
+  "00" = "Full",
+  "01" = "Start",
+  "10" = "End",
+  "11" = "Middle"
+)
+
+plotFanTree.wTraits(
+  lad_sqrt_tree,
+  traits,
+  ftype= "off",
+  colors = list(acc_cols, part_cols, gc_cols, lwr_cols),
+  part = 1,
+  arc_height = 0.65,
+  spacer = 0
+)
+
+legend( x = -10, y = 3,
+        legend = partials[unique(traits$part)],
+        lwd = 8, col = part_cols,
+        title = "Part of coding region predicted",
+        bty = "n",
+        xjust = 0, yjust = 0,
+        ncol = 2)
+
+add.color.bar(
+  20,
+  cols = gc_cols,
+  title = "GC content",
+  lims = range(traits$gc * 100),
+  digits = 2,
+  prompt = FALSE,
+  x = -10, y = -1,
+  lwd = 8,
+  outline = FALSE,
+  subtitle = ""
+)
+
+add.color.bar(
+  20,
+  cols = lwr_cols,
+  title = "Likelihood-weight ratio",
+  lims = range(traits$lwr),
+  digits = 2,
+  prompt = FALSE,
+  x = -10, y = -7,
+  lwd = 8,
+  outline = FALSE,
+  subtitle = ""
+)
+
+```
+
+```{r adjust}
+
+acc_num <- length(unique(traits$acc))
+
+leg_rows <- 5
+
+rows <- ceiling(acc_num/leg_rows)
+
+height <- rows
+
+```
+
+```{r acc_legend, fig.height=height, fig.width = 12, out.width="100%"}
+
+par(mar = c(1, 1, 1, 1))
+
+plot.new()
+
+legend( x = 0, y = 1,
+        legend = unique(traits$acc),
+        lwd = 8, col = acc_cols,
+        title = "Accession Number",
+        title.adj = 0,
+        bty = "n",
+        xjust = 0, yjust = 1,
+        ncol = leg_rows)
+
+```
+Figure 1: Putative phylogenetic tree of extracted fragments with mapped traits
+
+#### <br>
+#### <br>
+#### Confidence of Phylogenetic Placement
+When placing query sequences on a reference gene tree, there is often more than one likely location for each query sequence. This uncertainty can be represented by the likelihood weight ratio.
+
+```{r}
+
+ggplot(place_name_table, aes(x = like_weight_ratio, fill = acc)) +
+  geom_histogram(bins = 10) +
+  theme_classic() +
+  labs(x = "Likelihood Weight Ratio",
+       y = "Placement Frequency",
+       fill = "Accession Number",
+       main = NULL)
+
+```
+
+Figure 2: Likelihood weight ratio of likely locations of the fragments
+
+#### <br>
+## Distribution of Reads
+
+#### Table 2: Clusters of reads placed close together in each accession
+```{r}
+
+knitr::kable(
+  full_df[1:10, ],
+  row.names = FALSE,
+  align = "c"
+)
+
+```
+
+
+
+
+
+
+
+
