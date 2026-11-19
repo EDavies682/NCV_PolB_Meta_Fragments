@@ -5,5 +5,4 @@ NCV-PolB_Meta_Fragments is a nextflow pipeline that identifies, extracts, and an
 
 Project Status: Work in Progress (WIP)
 
-![workflow visualisation]
-(images/visualised_workflow.jpg)
+![workflow visualisation](images/visualised_workflow.jpg)
