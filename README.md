@@ -17,7 +17,7 @@ Project Status: Work in Progress (WIP)
 
 ## Usage
 
-Nextflow is required to run this pipeline. For information on how to download nextflow, please refer to [this page](https://nf co.re/docs/get_started/environment_setup/nextflow).
+Nextflow is required to run this pipeline. For information on how to download nextflow, please refer to [this page](https://nf-co.re/docs/get_started/environment_setup/nextflow).
 
 First clone the repository:
 
