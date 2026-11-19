@@ -14,3 +14,35 @@ Project Status: Work in Progress (WIP)
 3. Runs prodigal-gv on the extracted reads.
 4. Maps the predicted protein fragments onto an existing reference giant virus PolB gene phylogeny.
 5. Outputs summary of findings in HTML format.
+
+## Usage
+
+Nextflow is required to run this pipeline. For information on how to download nextflow, please refer to [this page](https://nf co.re/docs/get_started/environment_setup/nextflow).
+
+First clone the repository:
+
+```bash
+
+git clone https://github.com/EDavies682/NCV_PolB_Meta_Fragments.git
+cd 
+
+```
+
+Then create the environment:
+
+```bash
+
+conda env create --file environment.yml
+
+```
+
+Now the pipeline is ready to be run:
+
+```bash
+
+nextflow run main.nf --acc /path/to/accession/list
+
+```
+
+
+
