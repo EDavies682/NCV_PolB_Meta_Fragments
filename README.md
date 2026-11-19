@@ -11,8 +11,8 @@ Project Status: Work in Progress (WIP)
 
 1. Takes input as path to accession list.
 2. Runs a loose blastx against a selection of known giant virus PolB from phylogenetically diverse species. Extracts reads with significant hits.
-3. Runs prodigal-gv on the extracted reads.
-4. Maps the predicted protein fragments onto an existing reference giant virus PolB gene phylogeny.
+3. Runs prodigal-gv on the extracted reads, followed by a tighter blastp search to filter the putative protein fragments.
+4. Maps the putative protein fragments onto an existing reference giant virus PolB gene phylogeny.
 5. Outputs summary of findings in HTML format.
 
 ## Usage
